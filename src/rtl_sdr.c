@@ -16,6 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* jimlux 13 Oct 2017 - add -D switch for direct sampling */
+
 #include <errno.h>
 #include <signal.h>
 #include <string.h>
@@ -55,7 +57,9 @@ void usage(void)
 		"\t[-b output_block_size (default: 16 * 16384)]\n"
 		"\t[-n number of samples to read (default: 0, infinite)]\n"
 		"\t[-S force sync output (default: async)]\n"
-		"\tfilename (a '-' dumps samples to stdout)\n\n");
+		"\tfilename (a '-' dumps samples to stdout)\n\n"
+    "\texperimental jimlux\n"
+    "\t[-D 1|2 direct sampling]\n"      );
 	exit(1);
 }
 
@@ -113,6 +117,7 @@ int main(int argc, char **argv)
 	int gain = 0;
 	int ppm_error = 0;
 	int sync_mode = 0;
+  int direct_sampling =0; //jimlux
 	FILE *file;
 	uint8_t *buffer;
 	int dev_index = 0;
@@ -121,7 +126,7 @@ int main(int argc, char **argv)
 	uint32_t samp_rate = DEFAULT_SAMPLE_RATE;
 	uint32_t out_block_size = DEFAULT_BUF_LENGTH;
 
-	while ((opt = getopt(argc, argv, "d:f:g:s:b:n:p:S")) != -1) {
+	while ((opt = getopt(argc, argv, "d:f:g:s:b:n:p:S:D:")) != -1) { //jimlux - added D:
 		switch (opt) {
 		case 'd':
 			dev_index = verbose_device_search(optarg);
@@ -145,6 +150,9 @@ int main(int argc, char **argv)
 		case 'n':
 			bytes_to_read = (uint32_t)atof(optarg) * 2;
 			break;
+    case 'D':     //jimlux
+      direct_sampling = atoi(optarg);
+      break;
 		case 'S':
 			sync_mode = 1;
 			break;
@@ -202,6 +210,11 @@ int main(int argc, char **argv)
 
 	/* Set the frequency */
 	verbose_set_frequency(dev, frequency);
+
+  /* direct sampling */ //jimlux
+  if (direct_sampling) {
+    verbose_direct_sampling(dev, direct_sampling);
+  }
 
 	if (0 == gain) {
 		 /* Enable automatic gain */

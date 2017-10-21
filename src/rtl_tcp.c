@@ -1,3 +1,4 @@
+
 /*
  * rtl-sdr, turns your Realtek RTL2832 based DVB dongle into a SDR receiver
  * Copyright (C) 2012 by Steve Markgraf <steve@steve-m.de>
@@ -16,6 +17,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+// jimlux 13 oct 2017 - add -D option for direct sampling
+//                      TODO - test that command option via socket works
 
 #include <errno.h>
 #include <signal.h>
@@ -97,7 +100,9 @@ void usage(void)
 		"\t[-n max number of linked list buffers to keep (default: 500)]\n"
 		"\t[-d device index (default: 0)]\n"
 		"\t[-P ppm_error (default: 0)]\n"
-		"\t[-T enable bias-T on GPIO PIN 0 (works for rtl-sdr.com v3 dongles)]\n");
+		"\t[-T enable bias-T on GPIO PIN 0 (works for rtl-sdr.com v3 dongles)]\n"
+         "\texperimental jimlux\n"
+         "\t[-D 1|2 direct sampling]\n" );
 	exit(1);
 }
 
@@ -361,6 +366,11 @@ static void *command_worker(void *arg)
 			printf("set bias tee %d\n", ntohl(cmd.param));
 			rtlsdr_set_bias_tee(dev, (int)ntohl(cmd.param));
 			break;
+    case 0x0f:                  //jimlux 13 oct
+      printf("set direct sampling %d\n", ntohl(cmd.param));
+        rtlsdr_set_direct_sampling(dev, (int)ntohl(cmd.param));
+        break;
+        
 		default:
 			break;
 		}
@@ -380,6 +390,7 @@ int main(int argc, char **argv)
 	int dev_given = 0;
 	int gain = 0;
 	int ppm_error = 0;
+  int direct_sampling =0; //jimlux
 	struct llist *curelem,*prev;
 	pthread_attr_t attr;
 	void *status;
@@ -397,7 +408,7 @@ int main(int argc, char **argv)
 	struct sigaction sigact, sigign;
 #endif
 
-	while ((opt = getopt(argc, argv, "a:p:f:g:s:b:n:d:P:T")) != -1) {
+	while ((opt = getopt(argc, argv, "a:p:f:g:s:b:n:d:P:D:T")) != -1) { //jimlux 13 Oct
 		switch (opt) {
 		case 'd':
 			dev_index = verbose_device_search(optarg);
@@ -430,6 +441,10 @@ int main(int argc, char **argv)
 		case 'T':
 			enable_biastee = 1;
 			break;
+    case 'D':     //jimlux
+        
+        direct_sampling = atoi(optarg);
+        break;
 		default:
 			usage();
 			break;
@@ -481,6 +496,12 @@ int main(int argc, char **argv)
 	else
 		fprintf(stderr, "Tuned to %i Hz.\n", frequency);
 
+  /* direct sampling  */  //jimlux
+  if (direct_sampling) {
+    verbose_direct_sampling(dev, direct_sampling);
+  }
+
+  
 	if (0 == gain) {
 		 /* Enable automatic gain */
 		r = rtlsdr_set_tuner_gain_mode(dev, 0);
